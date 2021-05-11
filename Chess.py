@@ -24,40 +24,22 @@ class InvalidPieceName(Exception): pass
 class Colors(Enum):
     White = 0
     Black = 1
+class ChessPieces(Enum):
+    Pawn = 1
+    Knight = 3
+    Bishop = 3
+    Rook = 5
+    Queen = 9
+    King = None
 
-class _piece():
-    def __init__(self, color):
+class Piece():
+    def __init__(self, color, piece):
         self.color = color
-        self.imageName = color.name + "Piece"
+        self.piece = piece
+        self.imageName = color.name + piece.name
 
     def getName(self):
         return self.imageName
-
-class _Pawn(_piece):
-    def __init__(self, color):
-        super().__init__(color)
-        self.imageName = color.name + "Pawn"
-
-class _Knight(_piece):
-    def __init__(self, color):
-        super().__init__(color)
-        self.imageName = color.name + "Knight"
-class _Bishop(_piece):
-    def __init__(self, color):
-        super().__init__(color)
-        self.imageName = color.name + "Bishop"
-class _Rook(_piece):
-    def __init__(self, color):
-        super().__init__(color)
-        self.imageName = color.name + "Rook"
-class _Queen(_piece):
-    def __init__(self, color):
-        super().__init__(color)
-        self.imageName = color.name + "Queen"
-class _King(_piece):
-    def __init__(self, color):
-        super().__init__(color)
-        self.imageName = color.name + "King"
 
 class _Square:
     def __init__(self, color, name, square):
@@ -76,20 +58,19 @@ class _Square:
     def setPiece(self, imageName):
         pieceColor = Colors.Black if imageName[0:5] == "Black" else Colors.White
         pieceName = imageName[5:]
-        print(pieceName)
         
         if pieceName == "Pawn":
-            self.piece = _Pawn(pieceColor)
+            self.piece = Piece(pieceColor, ChessPieces.Pawn)
         elif pieceName == "Knight":
-            self.piece = _Knight(pieceColor)
+            self.piece = Piece(pieceColor, ChessPieces.Knight)
         elif pieceName == "Bishop":
-            self.piece = _Bishop(pieceColor)
+            self.piece = Piece(pieceColor, ChessPieces.Bishop)
         elif pieceName == "Rook":
-            self.piece = _Rook(pieceColor)
+            self.piece = Piece(pieceColor, ChessPieces.Rook)
         elif pieceName == "Queen":
-            self.piece = _Queen(pieceColor)
+            self.piece = Piece(pieceColor, ChessPieces.Queen)
         elif pieceName == "King":
-            self.piece = _King(pieceColor)
+            self.piece = Piece(pieceColor, ChessPieces.King)
         else : raise InvalidPieceName
 
         self.DrawPiece()
@@ -153,7 +134,7 @@ class Chess:
 
     def _addPiece(self, pieceName, location):
         global ASSETLOCATION
-        print(list(location))
+
         try:
             file = str(list(location)[0])
         except:
@@ -190,8 +171,6 @@ class Chess:
 
         for file in range(8):
             self._addPiece("BlackPawn", FILES[file] + "7")
-
-
     
     def _clickPrint(self):
         while(True):
@@ -208,7 +187,6 @@ class Chess:
             cir.setFill("white")
             cir.draw(self.window)
 
-            print(str(coordX) + ", " + str(coordY))
 
 def main():
     window = GraphWin("Chess Board", 700, 700)
