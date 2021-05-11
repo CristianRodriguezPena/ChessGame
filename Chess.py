@@ -26,6 +26,15 @@ class SquareColors(Enum):
     WHITE = 0
     BLACK = 1
 
+class _piece():
+    def __init__(self, img, color):
+        self.img = img
+        self.color = color
+
+class pawn(_piece):
+    def __init__(self, img, color):
+        super().__init__(img, color)
+
 class _Square:
     def __init__(self, color, name, square):
         self.color = color
