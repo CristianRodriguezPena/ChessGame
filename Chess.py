@@ -1,6 +1,6 @@
 from graphics import *
 from enum import Enum
-import time
+from time import sleep
 
 FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
 ASSETLOCATION = "Assets/"
@@ -28,30 +28,36 @@ class Colors(Enum):
 class _piece():
     def __init__(self, color):
         self.color = color
+        self.imageName = color.name + "Piece"
+
+    def getName(self):
+        return self.imageName
 
 class _Pawn(_piece):
     def __init__(self, color):
         super().__init__(color)
         self.imageName = color.name + "Pawn"
 
-    def getName(self):
-        return self.imageName
-
 class _Knight(_piece):
     def __init__(self, color):
         super().__init__(color)
+        self.imageName = color.name + "Knight"
 class _Bishop(_piece):
     def __init__(self, color):
         super().__init__(color)
+        self.imageName = color.name + "Bishop"
 class _Rook(_piece):
     def __init__(self, color):
         super().__init__(color)
+        self.imageName = color.name + "Rook"
 class _Queen(_piece):
     def __init__(self, color):
         super().__init__(color)
+        self.imageName = color.name + "Queen"
 class _King(_piece):
     def __init__(self, color):
         super().__init__(color)
+        self.imageName = color.name + "King"
 
 class _Square:
     def __init__(self, color, name, square):
@@ -67,26 +73,29 @@ class _Square:
         self.window = window
         self.square.draw(window)
 
-    def drawPiece(self, imageName):
+    def setPiece(self, imageName):
         pieceColor = Colors.Black if imageName[0:5] == "Black" else Colors.White
         pieceName = imageName[5:]
         print(pieceName)
         
         if pieceName == "Pawn":
-            self.peice = _Pawn(pieceColor)
+            self.piece = _Pawn(pieceColor)
         elif pieceName == "Knight":
-            self.peice = _Knight(pieceColor)
+            self.piece = _Knight(pieceColor)
         elif pieceName == "Bishop":
-            self.peice = _Bishop(pieceColor)
+            self.piece = _Bishop(pieceColor)
         elif pieceName == "Rook":
-            self.peice = _Rook(pieceColor)
+            self.piece = _Rook(pieceColor)
         elif pieceName == "Queen":
-            self.peice = _Queen(pieceColor)
+            self.piece = _Queen(pieceColor)
         elif pieceName == "King":
-            self.peice = _King(pieceColor)
+            self.piece = _King(pieceColor)
         else : raise InvalidPieceName
 
-        img = Image(self.centerPoint, ASSETLOCATION + imageName + ".gif")
+        self.DrawPiece()
+
+    def DrawPiece(self):
+        img = Image(self.centerPoint, ASSETLOCATION + self.piece.getName() + ".gif")
         img.draw(self.window)
 
     def removePiece(self):
@@ -121,24 +130,23 @@ class Chess:
         border = makeRectangle(self.borderOffset, self.borderOffset, self.height, self.width, 7)
         border.draw(self.window)
         
-        currentColors = Colors.Black
+        currentColors = Colors.White
         for file in range(8):
             fileName = FILES[file]
             currentColors = (Colors.Black if currentColors == Colors.White else Colors.White)
             self.board[fileName] = []
-            for rank in range(8):
+            for rank in range(7, -1, -1): #for loop has to be done like this because (0,0) is top right not bottom right
                 rect = makeRectangle(file * self.squareSize + self.borderOffset, 
                     rank * self.squareSize + self.borderOffset,
                     (file + 1) * self.squareSize + self.borderOffset,
                     (rank + 1) * self.squareSize + self.borderOffset, 1)
 
-                self.board[fileName].append(_Square(currentColors, fileName + str(rank + 1), rect))
+                self.board[fileName].append(_Square(currentColors, fileName + str(rank - 1), rect))
                 rect.setFill("lime") if currentColors == Colors.White else rect.setFill("gray")
                 currentColors = (Colors.Black if currentColors == Colors.White else Colors.White)
 
-                self.board[fileName][rank].drawSquare(self.window)
-
-                #time.sleep(0.025)
+                self.board[fileName][-1].drawSquare(self.window)
+                #sleep(0.01)
 
     def getBoard(self):
         return self.board
@@ -156,8 +164,35 @@ class Chess:
         except: 
             raise IncorrectRankInout
 
-        self.board[file][rank - 1].drawPiece(pieceName)
+        self.board[file][rank - 1].setPiece(pieceName)
 
+    def setUpPieces(self):
+        self._addPiece("WhiteRook", "a1")
+        self._addPiece("WhiteRook", "h1")
+        self._addPiece("WhiteKnight", "b1")
+        self._addPiece("WhiteKnight", "g1")
+        self._addPiece("WhiteBishop", "c1")
+        self._addPiece("WhiteBishop", "f1")
+        self._addPiece("WhiteQueen", "d1")
+        self._addPiece("WhiteKing", "e1")
+
+        for file in range(8):
+            self._addPiece("WhitePawn", FILES[file] + "2")
+
+        self._addPiece("BlackRook", "a8")
+        self._addPiece("BlackRook", "h8")
+        self._addPiece("BlackKnight", "b8")
+        self._addPiece("BlackKnight", "g8")
+        self._addPiece("BlackBishop", "c8")
+        self._addPiece("BlackBishop", "f8")
+        self._addPiece("BlackQueen", "d8")
+        self._addPiece("BlackKing", "e8")
+
+        for file in range(8):
+            self._addPiece("BlackPawn", FILES[file] + "7")
+
+
+    
     def _clickPrint(self):
         while(True):
             click = self.window.getMouse()
@@ -179,7 +214,7 @@ def main():
     window = GraphWin("Chess Board", 700, 700)
     chess = Chess(window)
     chess.setUpBoard()
-    chess._addPiece("BlackKnight", "e8")
+    chess.setUpPieces()
     chess._clickPrint()
     window.getMouse()
 
