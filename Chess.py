@@ -1,11 +1,9 @@
 from graphics import *
 from enum import Enum
 import time
-"""import os
-print(os.listdir('.'))"""
 
 FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
-ASSETDIRECTORY = "Assets/"
+ASSETLOCATION = "Assets/"
 
 def makeRectangle(x1, y1, x2, y2, width):
     rect = Rectangle(Point(x1, y1), Point(x2, y2))
@@ -21,19 +19,39 @@ class WindowHeightTooSmall(Exception): pass
 class IncorrectFileInput(Exception): pass
 class IncorrectRankInout(Exception): pass
 class SquareHasNoPiece(Exception): pass
+class InvalidPieceName(Exception): pass
 
-class SquareColors(Enum):
-    WHITE = 0
-    BLACK = 1
+class Colors(Enum):
+    White = 0
+    Black = 1
 
 class _piece():
-    def __init__(self, img, color):
-        self.img = img
+    def __init__(self, color):
         self.color = color
 
-class pawn(_piece):
-    def __init__(self, img, color):
-        super().__init__(img, color)
+class _Pawn(_piece):
+    def __init__(self, color):
+        super().__init__(color)
+        self.imageName = color.name + "Pawn"
+
+    def getName(self):
+        return self.imageName
+
+class _Knight(_piece):
+    def __init__(self, color):
+        super().__init__(color)
+class _Bishop(_piece):
+    def __init__(self, color):
+        super().__init__(color)
+class _Rook(_piece):
+    def __init__(self, color):
+        super().__init__(color)
+class _Queen(_piece):
+    def __init__(self, color):
+        super().__init__(color)
+class _King(_piece):
+    def __init__(self, color):
+        super().__init__(color)
 
 class _Square:
     def __init__(self, color, name, square):
@@ -49,9 +67,27 @@ class _Square:
         self.window = window
         self.square.draw(window)
 
-    def drawImage(self, imgName):
-        self.piece = Image(self.centerPoint, imgName)
-        self.piece.draw(self.window)
+    def drawPiece(self, imageName):
+        pieceColor = Colors.Black if imageName[0:5] == "Black" else Colors.White
+        pieceName = imageName[5:]
+        print(pieceName)
+        
+        if pieceName == "Pawn":
+            self.peice = _Pawn(pieceColor)
+        elif pieceName == "Knight":
+            self.peice = _Knight(pieceColor)
+        elif pieceName == "Bishop":
+            self.peice = _Bishop(pieceColor)
+        elif pieceName == "Rook":
+            self.peice = _Rook(pieceColor)
+        elif pieceName == "Queen":
+            self.peice = _Queen(pieceColor)
+        elif pieceName == "King":
+            self.peice = _King(pieceColor)
+        else : raise InvalidPieceName
+
+        img = Image(self.centerPoint, ASSETLOCATION + imageName + ".gif")
+        img.draw(self.window)
 
     def removePiece(self):
         if self.piece == None: raise SquareHasNoPiece
@@ -66,7 +102,6 @@ class _Square:
         return self.color
 
 class Chess:
-
     board = {}
 
     def __init__(self, window):
@@ -86,10 +121,10 @@ class Chess:
         border = makeRectangle(self.borderOffset, self.borderOffset, self.height, self.width, 7)
         border.draw(self.window)
         
-        currentSquareColors = SquareColors.BLACK
+        currentColors = Colors.Black
         for file in range(8):
             fileName = FILES[file]
-            currentSquareColors = (SquareColors.BLACK if currentSquareColors == SquareColors.WHITE else SquareColors.WHITE)
+            currentColors = (Colors.Black if currentColors == Colors.White else Colors.White)
             self.board[fileName] = []
             for rank in range(8):
                 rect = makeRectangle(file * self.squareSize + self.borderOffset, 
@@ -97,9 +132,9 @@ class Chess:
                     (file + 1) * self.squareSize + self.borderOffset,
                     (rank + 1) * self.squareSize + self.borderOffset, 1)
 
-                self.board[fileName].append(_Square(currentSquareColors, fileName + str(rank + 1), rect))
-                rect.setFill("lime") if currentSquareColors == SquareColors.WHITE else rect.setFill("gray")
-                currentSquareColors = (SquareColors.BLACK if currentSquareColors == SquareColors.WHITE else SquareColors.WHITE)
+                self.board[fileName].append(_Square(currentColors, fileName + str(rank + 1), rect))
+                rect.setFill("lime") if currentColors == Colors.White else rect.setFill("gray")
+                currentColors = (Colors.Black if currentColors == Colors.White else Colors.White)
 
                 self.board[fileName][rank].drawSquare(self.window)
 
@@ -109,7 +144,7 @@ class Chess:
         return self.board
 
     def _addPiece(self, pieceName, location):
-        global ASSETDIRECTORY
+        global ASSETLOCATION
         print(list(location))
         try:
             file = str(list(location)[0])
@@ -121,7 +156,7 @@ class Chess:
         except: 
             raise IncorrectRankInout
 
-        self.board[file][rank - 1].drawImage(ASSETDIRECTORY + pieceName + ".gif")
+        self.board[file][rank - 1].drawPiece(pieceName)
 
     def _clickPrint(self):
         while(True):
