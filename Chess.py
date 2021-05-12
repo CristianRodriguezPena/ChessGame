@@ -31,27 +31,30 @@ class Color(Enum):
     Black = 1
 class ChessPiece(Enum):
     Pawn = 1
-    Knight = 3
+    Knight = 2
     Bishop = 3
-    Rook = 5
-    Queen = 9
-    King = None
+    Rook = 4
+    Queen = 5
+    King = 6
 
 class Piece():
     def __init__(self, color, piece, img):
         self.color = color
         self.piece = piece
         self.img = img
-        self.imageName = color.name + piece.name
+        self.pieceName = color.name + piece.name
 
     def draw(self, window) -> None:
         self.img.draw(window)
 
+    def getColor(self) -> Color:
+        return self.color
+        
     def undraw(self) -> None:
         self.img.undraw()
 
-    def getImageName(self) -> str:
-        return self.imageName
+    def getPieceName(self) -> str:
+        return self.pieceName
 
     def getName(self) -> str:
         return self.piece.name
@@ -70,12 +73,11 @@ class _Square:
         self.window = window
         self.square.draw(window)
 
-    def setPiece(self, imageName) -> None:
-        pieceColor = Color.Black if imageName[0:5] == "Black" else Color.White
-        pieceName = imageName[5:]
+    def setPiece(self, pieceName) -> None:
+        pieceColor = Color.Black if pieceName[0:5] == "Black" else Color.White
+        pieceName = pieceName[5:]
+        img = Image(self.centerPoint, ASSETLOCATION + pieceColor.name + pieceName + ".gif")
 
-        img = Image(self.centerPoint, ASSETLOCATION + imageName + ".gif")
-        
         if pieceName == "Pawn":
             self.piece = Piece(pieceColor, ChessPiece.Pawn, img)
         elif pieceName == "Knight":
@@ -97,7 +99,10 @@ class _Square:
 
     def getPiece(self):
         return self.piece
-
+    
+    def isEmpty(self):
+        return self.piece == None
+    
     def removePiece(self) -> None:
         if self.piece == None: 
             raise SquareHasNoPiece
@@ -108,9 +113,9 @@ class _Square:
     def getCenterPoint(self) -> Point:
         return self.centerPoint
     
-    def getCoord(self) -> tuple :
+    def getCoords(self) -> tuple :
         file = FILE.index(self.name[0])
-        rank = 7 - int(self.name[1])
+        rank = 7 - int(self.name[1]) - 1 # offset if because of list start with 0 and not 1
         return file, rank
 
     def getColor(self) -> Color:
@@ -199,24 +204,41 @@ class Chess:
         for file in range(8):
             self._addPiece("BlackPawn", FILE[file] + "7")
     
+    def movePiece(self, square1, square2):
+        square2.setPiece(square1.piece.getPieceName())
+        square1.removePiece()
+   
     def makeMove(self) -> None:
         lastSelectedSquare = None
         while(True):
             click = self.window.getMouse()
             x, y = self.getClickSquare(click)
             selectedSquare = self.board[FILE[x]][y]
-            
-            self.undrawPreviews()
-            if lastSelectedSquare == selectedSquare: continue
-            legalMoves = self.getAllLegalMoves(x, y)
 
+            print("new")
+            if lastSelectedSquare == selectedSquare: 
+                self.undrawPreviews() 
+                lastSelectedSquare = None
+                continue
+            else:
+                pieceChanged = False
+                for preview in self.previews:
+                    if selectedSquare.getCenterPoint().getX() == preview.getCenter().getX() and selectedSquare.getCenterPoint().getY() == preview.getCenter().getY():
+                        self.undrawPreviews() 
+                        self.movePiece(lastSelectedSquare, selectedSquare)
+                        pieceChanged = True
+                        break
+                
+                if pieceChanged:
+                    continue
+                
+            legalMoves = self.getAllLegalMoves(x, y)
             for coords in legalMoves:
                 square = self.board[FILE[coords[0]]][coords[1]]
                 self.drawPreview(square)
 
             lastSelectedSquare = selectedSquare
-
-            
+      
     def getClickSquare(self, click) -> tuple:
         clickX = click.getX() - self.borderOffset
         clickY = click.getY() - self.borderOffset
@@ -231,31 +253,105 @@ class Chess:
 
     def getAllLegalMoves(self, *coords) -> list:
         file, rank = coords
-        piece = self.board[FILE[file]][rank].getPiece()
+        currentSquare = self.board[FILE[file]][rank]
 
         legalMoves = []
-        if piece.getName() == ChessPiece.Pawn.name:
-            if self.board[FILE[file]][rank + 1].getPiece() == None:
-                coords = file, rank + 1
-                legalMoves.append(coords)
+        if currentSquare.getPiece().getName() == ChessPiece.Pawn.name:
+            for change in range(1, 3):
+                if change == 2 and rank != 1: break
+                try:     
+                    possiblePreview = self.board[FILE[file]][rank + change]
+                    if possiblePreview.isEmpty():
+                        legalMoves.append(possiblePreview.getCoords()) 
+                    else: 
+                        break
+                except:
+                    pass
 
-            if rank == 1 and self.board[FILE[file]][rank + 2].getPiece() == None:
-                coords = file, rank + 2
-                legalMoves.append(coords)
-
-            try: 
-                if self.board[FILE[file + 1]][rank + 1].piece.getColor() != piece.getColor():
-                    legalMoves.append(file + 1, rank + 1)
-            except: 
-                pass
-
-            try:
-                if self.board[FILE[file - 1]][rank + 1].piece.getColor() != piece.getColor():
-                    legalMoves.append(file - 1, rank + 1)
+            try:     
+                possiblePreview = self.board[FILE[file + 1]][rank + 1]
+                if currentSquare.getPiece().getColor() != possiblePreview.getPiece().getColor():
+                    legalMoves.append(possiblePreview.getCoords()) 
             except:
                 pass
-        else:
-            print("not")
+
+            try:     
+                possiblePreview = self.board[FILE[file - 1]][rank + 1]
+                if currentSquare.getPiece().getColor() != possiblePreview.getPiece().getColor():
+                    legalMoves.append(possiblePreview.getCoords()) 
+            except:
+                pass
+
+        elif currentSquare.getPiece().getName() == ChessPiece.Knight.name:
+            KnightMoves = [[1, 2], [-1 , 2] ,[1, -2], [-1, -2], [-2, 1], [-2, -1], [2, 1], [2, -1]]
+            
+            for change in KnightMoves:
+                if file + change[0] < 0 or rank + change[1] < 0: continue
+                try:     
+                    possiblePreview = self.board[FILE[file + change[0]]][rank + change[1]]
+                    if possiblePreview.isEmpty():
+                        legalMoves.append(possiblePreview.getCoords()) 
+                    elif currentSquare.getPiece().getColor() != possiblePreview.getPiece().getColor():
+                        legalMoves.append(possiblePreview.getCoords()) 
+                except:
+                    pass
+    
+        elif currentSquare.getPiece().getName() == ChessPiece.Bishop.name:
+            #++
+            for change in range(1, 8):
+                try:     
+                    possiblePreview = self.board[FILE[file + change]][rank + change]
+                    if possiblePreview.isEmpty():
+                        legalMoves.append(possiblePreview.getCoords())
+                    elif currentSquare.getPiece().getColor() != possiblePreview.getPiece().getColor():
+                        legalMoves.append(possiblePreview.getCoords()) 
+                    else: 
+                        break
+                except:
+                    pass
+            
+            #+-
+            for change in range(1, 8):
+                if file - change < 0: continue
+                try:     
+                    possiblePreview = self.board[FILE[file - change]][rank + change]
+                    if possiblePreview.isEmpty():
+                        legalMoves.append(possiblePreview.getCoords()) 
+                    elif currentSquare.getPiece().getColor() != possiblePreview.getPiece().getColor():
+                        legalMoves.append(possiblePreview.getCoords()) 
+                        change = 7
+                    else: 
+                        break
+                except:
+                    pass
+
+            #-+
+            for change in range(1, 8):
+                if rank - change < 0: continue
+                try:     
+                    possiblePreview = self.board[FILE[file + change]][rank - change]
+                    if possiblePreview.isEmpty():
+                        legalMoves.append(possiblePreview.getCoords()) 
+                    elif currentSquare.getPiece().getColor() != possiblePreview.getPiece().getColor():
+                        legalMoves.append(possiblePreview.getCoords()) 
+                    else: 
+                        break
+                except:
+                    pass
+            
+            #--
+            for change in range(1, 8):
+                if file - change < 0 or rank - change < 0: continue
+                try:     
+                    possiblePreview = self.board[FILE[file - change]][rank - change]
+                    if possiblePreview.isEmpty():
+                        legalMoves.append(possiblePreview.getCoords()) 
+                    elif currentSquare.getPiece().getColor() != possiblePreview.getPiece().getColor():
+                        legalMoves.append(possiblePreview.getCoords()) 
+                    else: 
+                        break
+                except:
+                    pass
             
         return legalMoves
 
@@ -269,7 +365,7 @@ class Chess:
     def undrawPreviews(self) -> None:
         for preview in self.previews:
             preview.undraw() 
-    
+          
     def _clickPrint(self) -> None:
         while(True):
             click = self.window.getMouse()
@@ -284,7 +380,6 @@ class Chess:
             cir = Circle(Point(coordX, coordY), 5)
             cir.setFill("green")
             cir.draw(self.window)
-
 
 def main():
     window = GraphWin("Chess Board", 700, 700)
