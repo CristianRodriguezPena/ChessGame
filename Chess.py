@@ -239,21 +239,30 @@ class Chess:
     def makeMove(self) -> None:
         lastSelectedSquare = None
         selectedSquare = None
+        moveColor = Color.White
         while(True):
             click = self.window.getMouse()
             x, y = self.getClickSquare(click)
             lastSelectedSquare = selectedSquare
             selectedSquare = self.board[FILE[x]][y]
-            
+
+            if selectedSquare in self.previewSquares:
+                self.movePiece(lastSelectedSquare, selectedSquare)
+                self.undrawPreviews()
+                moveColor = Color.Black if selectedSquare.getPiece().isWhite() else Color.White
+                self.undrawPreviews
+                
+            try:
+                if selectedSquare.getPiece().getColor() != moveColor:
+                    selectedSquare = lastSelectedSquare
+                    continue
+                    
+            except:
+                pass
 
             if len(self.previewSquares) != 0: 
-                if selectedSquare in self.previewSquares:
-                    self.movePiece(lastSelectedSquare, selectedSquare)
-                    self.undrawPreviews()
-                    continue
-
                 self.undrawPreviews()
-                    
+                if selectedSquare != lastSelectedSquare: continue
 
             legalMoves = self.getAllLegalMoves(x, y)
             self.drawPreviews(legalMoves)
@@ -584,6 +593,9 @@ class Chess:
         
         self.previewSquares = []
 
+    def clone(self) -> object:
+        return self.copy()
+        
     def _clickPrint(self) -> None:
         while(True):
             click = self.window.getMouse()
