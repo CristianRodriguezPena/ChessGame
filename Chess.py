@@ -61,26 +61,26 @@ class Piece():
         except:
             return False
 
-    def getPiece(self) -> ChessPiece:
+    def getType(self) -> ChessPiece:
         return self.piece
 
     def isWhite(self) -> bool:
         return self.color == Color.White
 
 class Square:
-    def __init__(self, color, name, square):
+    def __init__(self, color, name, img: Image):
         self.color = color
         self.name = name
-        self.square = square
-        self.centerPoint = Point((square.getP1().getX() + square.getP2().getX()) / 2,
-            (square.getP1().getY() + square.getP2().getY()) / 2)
+        self.img = img
+        self.centerPoint = Point((img.getP1().getX() + img.getP2().getX()) / 2,
+            (img.getP1().getY() + img.getP2().getY()) / 2)
         self.piece = None
         self.window = None
         self.previewImg = None
     
     def drawSquare(self, window) -> None:
         self.window = window
-        self.square.draw(window)
+        self.img.draw(window)
 
     def _setPiece(self, pieceName) -> None:
         if self.piece != None: self.removePiece()
@@ -107,12 +107,12 @@ class Square:
         img = Image(self.centerPoint, ASSETLOCATION + pieceColor.name + piece.name + ".gif")
         self.piece = Piece(pieceColor, piece, img)
 
-        self.DrawPiece()
+        self.drawPiece()
 
     def getPiece(self) -> Piece:
         return self.piece
 
-    def DrawPiece(self) -> None:
+    def drawPiece(self) -> None:
         self.piece.draw(self.window)
 
     def removePiece(self) -> None:
@@ -122,6 +122,19 @@ class Square:
             self.piece.undraw()
             self.piece = None
     
+    def flashSquare(self) -> None:
+        flashSquare = Rectangle(Point(self.img.getP1().getX() + 5, self.img.getP1().getY() + 5), Point(self.img.getP2().getX() - 5, self.img.getP2().getY() - 5))
+        flashSquare.setWidth(10)
+        flashSquare.setOutline("red")
+
+        flashSquare.draw(self.window)
+        sleep(0.5)
+        flashSquare.undraw()
+        sleep(0.5)
+        flashSquare.draw(self.window)
+        sleep(0.5)
+        flashSquare.undraw()
+
     def addPreview(self) -> None:
         self.previewImg = Circle(self.centerPoint, 5)
         self.previewImg.setWidth(2)
@@ -187,9 +200,12 @@ class Chess:
 
                 self.board[fileName][-1].drawSquare(self.window)
                 #sleep(0.01)
+    
+    def setBoard(self, board: dict) -> None:
+        self.board = board
 
     def getBoard(self) -> dict:
-        return self.board
+        return self.board.copy()
 
     def _addPiece(self, pieceName, location) -> None:
         global ASSETLOCATION
@@ -233,7 +249,7 @@ class Chess:
             self._addPiece("BlackPawn", FILE[file] + "7")
     
     def movePiece(self, square1, square2) -> None:
-        square2.setPiece(square1.piece.getPiece(), square1.piece.getColor())
+        square2.setPiece(square1.piece.getType(), square1.piece.getColor())
         square1.removePiece()
    
     def makeMove(self) -> None:
@@ -246,10 +262,16 @@ class Chess:
             lastSelectedSquare = selectedSquare
             selectedSquare = self.board[FILE[x]][y]
 
+
             if selectedSquare in self.previewSquares:
                 self.movePiece(lastSelectedSquare, selectedSquare)
                 self.undrawPreviews()
                 moveColor = Color.Black if selectedSquare.getPiece().isWhite() else Color.White
+                alternate = Chess(self.window)
+                alternate.setBoard(self.getBoard())
+                checkingSquares = alternate.checkForCheck(moveColor)
+                for square in checkingSquares:
+                    square.flashSquare()
                 self.undrawPreviews
                 
             try:
@@ -580,6 +602,7 @@ class Chess:
                             legalMoves.append(possibleMove) 
                     except:
                         pass
+
         return legalMoves
 
     def drawPreviews(self, legalMoves) -> None:
@@ -593,9 +616,23 @@ class Chess:
         
         self.previewSquares = []
 
-    def clone(self) -> object:
-        return self.copy()
-        
+    def checkForCheck(self, color) -> list[Square]:
+        colorCheck = Color.White if color == Color.Black else Color.Black
+        checkingSquares = []
+        for file in range(0, 8):
+            for rank in range(0, 8):
+                currentSquare = self.board[FILE[file]][rank]
+                try:
+                    #print(str(FILE[file]) + str(rank), currentSquare.getPiece().getType().name)
+                    if currentSquare.getPiece().getColor() == colorCheck:
+                        legalMoves = self.getAllLegalMoves(file, rank)
+                        for moveSquare in legalMoves:
+                            if moveSquare.getPiece() == ChessPiece.King:
+                                checkingSquares.append(moveSquare)
+                except:
+                    pass
+        return checkingSquares
+
     def _clickPrint(self) -> None:
         while(True):
             click = self.window.getMouse()
@@ -612,7 +649,7 @@ class Chess:
             cir.draw(self.window)
 
 def main():
-    window = GraphWin("Chess Board", 700, 700)
+    window = GraphWin("Chess Board", 400, 400)
     chess = Chess(window)
     chess.setUpBoard()
     chess.setUpPieces()
