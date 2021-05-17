@@ -1,7 +1,9 @@
 from abc import get_cache_token
+from typing import MutableSequence
 from graphics import *
 from enum import Enum
 from time import sleep
+from copy import deepcopy
 
 FILE = ["a", "b", "c", "d", "e", "f", "g", "h"]
 ASSETLOCATION = "Assets/"
@@ -109,6 +111,9 @@ class Square:
 
         self.drawPiece()
 
+    def previewPiece(self, piece: Piece) -> None:
+        self.piece = piece
+
     def getPiece(self) -> Piece:
         return self.piece
 
@@ -169,9 +174,10 @@ class Chess:
         self.borderOffset = 50
         self.height = window.getHeight() - self.borderOffset
         self.width = window.getWidth() - self.borderOffset
-        self.previewSquares = []
+        self.possibleMoves = []
         self.window = window
         self.squareSize = (self.height - self.borderOffset) / 8
+        self.kingSquare = None
 
         if self.height <= 100:
             raise WindowHeightTooSmall
@@ -202,7 +208,7 @@ class Chess:
                 #sleep(0.01)
     
     def setBoard(self, board: dict) -> None:
-        self.board = board
+        self.board = deepcopy(board)
 
     def getBoard(self) -> dict:
         return self.board.copy()
@@ -262,16 +268,13 @@ class Chess:
             lastSelectedSquare = selectedSquare
             selectedSquare = self.board[FILE[x]][y]
 
-
-            if selectedSquare in self.previewSquares:
+            if selectedSquare in self.possibleMoves and self.isMoveAllowed(lastSelectedSquare, selectedSquare):
                 self.movePiece(lastSelectedSquare, selectedSquare)
                 self.undrawPreviews()
                 moveColor = Color.Black if selectedSquare.getPiece().isWhite() else Color.White
-                alternate = Chess(self.window)
-                alternate.setBoard(self.getBoard())
-                checkingSquares = alternate.checkForCheck(moveColor)
-                for square in checkingSquares:
-                    square.flashSquare()
+                kingSquare = self.checkForCheck(moveColor)
+                if kingSquare is not None:
+                    kingSquare.flashSquare()
                 self.undrawPreviews
                 
             try:
@@ -282,7 +285,7 @@ class Chess:
             except:
                 pass
 
-            if len(self.previewSquares) != 0: 
+            if len(self.possibleMoves) != 0: 
                 self.undrawPreviews()
                 if selectedSquare != lastSelectedSquare: continue
 
@@ -605,20 +608,36 @@ class Chess:
 
         return legalMoves
 
+    def isMoveAllowed(self, square1: Square, square2: Square) -> bool:
+        lostPiece = square2.getPiece()
+        self.previewMove(square1, square2)
+        kingSquare = self.checkForCheck(square2.getPiece().getColor())
+        if kingSquare is not None:
+            kingSquare.flashSquare()
+        self.previewMove(square2, square1)
+        square2.previewPiece(lostPiece)
+
+        return kingSquare is None
+
     def drawPreviews(self, legalMoves) -> None:
-        self.previewSquares = legalMoves
+        self.possibleMoves = legalMoves
         for square in legalMoves:
             square.addPreview()
 
     def undrawPreviews(self) -> None:
-        for preview in self.previewSquares:
+        for preview in self.possibleMoves:
             preview.removePreview()
         
-        self.previewSquares = []
+        self.possibleMoves = []
 
-    def checkForCheck(self, color) -> list[Square]:
+    def previewMove(self, square1: Square, square2: Square):
+        square2.previewPiece(square1.getPiece())
+        square1.previewPiece(None)
+
+    def checkForCheck(self, color) -> Square:
         colorCheck = Color.White if color == Color.Black else Color.Black
-        checkingSquares = []
+
+        kingInCheck = None
         for file in range(0, 8):
             for rank in range(0, 8):
                 currentSquare = self.board[FILE[file]][rank]
@@ -628,10 +647,11 @@ class Chess:
                         legalMoves = self.getAllLegalMoves(file, rank)
                         for moveSquare in legalMoves:
                             if moveSquare.getPiece() == ChessPiece.King:
-                                checkingSquares.append(moveSquare)
+                                kingInCheck = moveSquare
                 except:
                     pass
-        return checkingSquares
+
+        return kingInCheck
 
     def _clickPrint(self) -> None:
         while(True):
@@ -649,7 +669,7 @@ class Chess:
             cir.draw(self.window)
 
 def main():
-    window = GraphWin("Chess Board", 400, 400)
+    window = GraphWin("Chess Board", 700, 700)
     chess = Chess(window)
     chess.setUpBoard()
     chess.setUpPieces()
