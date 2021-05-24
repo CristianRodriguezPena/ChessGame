@@ -1,32 +1,10 @@
 from abc import get_cache_token
-from typing import MutableSequence
 from graphics import *
 from enum import Enum
 from time import sleep
-from copy import deepcopy
 
 FILE = ["a", "b", "c", "d", "e", "f", "g", "h"]
 ASSETLOCATION = "Assets/"
-
-def makeRectangle(x1, y1, x2, y2, width):
-    rect = Rectangle(Point(x1, y1), Point(x2, y2))
-    rect.setWidth(width)
-    return rect
-def makeLine(x1, y1, x2, y2, width):
-    line = Line(Point(x1, y1), Point(x2, y2))
-    line.setWidth(width)
-    return line
-def makeCircle(x, y, radius ,width):
-    cir = Circle(Point(x, y), radius)
-    cir.setWidth = width
-    return cir
-
-class WindowWidthTooSmall(Exception): pass
-class WindowHeightTooSmall(Exception): pass
-class IncorrectFileInput(Exception): pass
-class IncorrectRankInout(Exception): pass
-class SquareHasNoPiece(Exception): pass
-class InvalidPieceName(Exception): pass
 
 class Color(Enum):
     White = 0
@@ -41,6 +19,28 @@ class ChessPiece(Enum):
 class PawnMoveDirection(Enum):
     Forward = 1
     Backward = -1
+
+def makeRectangle(x1, y1, x2, y2, width):
+    rect = Rectangle(Point(x1, y1), Point(x2, y2))
+    rect.setWidth(width)
+    return rect
+def makeLine(x1, y1, x2, y2, width):
+    line = Line(Point(x1, y1), Point(x2, y2))
+    line.setWidth(width)
+    return line
+def makeCircle(x, y, radius ,width):
+    cir = Circle(Point(x, y), radius)
+    cir.setWidth = width
+    return cir
+def swapColor(color: Color) -> Color:
+        return Color.Black if color == Color.White else Color.White
+
+class WindowWidthTooSmall(Exception): pass
+class WindowHeightTooSmall(Exception): pass
+class IncorrectFileInput(Exception): pass
+class IncorrectRankInout(Exception): pass
+class SquareHasNoPiece(Exception): pass
+class InvalidPieceName(Exception): pass
 
 class Piece():
     def __init__(self, color, piece, img):
@@ -127,17 +127,17 @@ class Square:
             self.piece.undraw()
             self.piece = None
     
-    def flashSquare(self) -> None:
+    def flashSquare(self, duration: float, color: str) -> None:
         flashSquare = Rectangle(Point(self.img.getP1().getX() + 5, self.img.getP1().getY() + 5), Point(self.img.getP2().getX() - 5, self.img.getP2().getY() - 5))
         flashSquare.setWidth(10)
-        flashSquare.setOutline("red")
+        flashSquare.setOutline(color)
 
         flashSquare.draw(self.window)
-        sleep(0.5)
+        sleep(duration)
         flashSquare.undraw()
-        sleep(0.5)
+        sleep(duration)
         flashSquare.draw(self.window)
-        sleep(0.5)
+        sleep(duration)
         flashSquare.undraw()
 
     def addPreview(self) -> None:
@@ -158,7 +158,7 @@ class Square:
     
     def isEmpty(self) -> bool:
         return self.piece is None
-    
+
     def getCoords(self) -> tuple :
         file = FILE.index(self.name[0])
         rank = 7 - int(self.name[1]) - 1 # offset if because of list start with 0 and not 1
@@ -177,7 +177,6 @@ class Chess:
         self.possibleMoves = []
         self.window = window
         self.squareSize = (self.height - self.borderOffset) / 8
-        self.kingSquare = None
 
         if self.height <= 100:
             raise WindowHeightTooSmall
@@ -206,12 +205,9 @@ class Chess:
 
                 self.board[fileName][-1].drawSquare(self.window)
                 #sleep(0.01)
-    
-    def setBoard(self, board: dict) -> None:
-        self.board = deepcopy(board)
 
     def getBoard(self) -> dict:
-        return self.board.copy()
+        return self.board
 
     def _addPiece(self, pieceName, location) -> None:
         global ASSETLOCATION
@@ -268,14 +264,22 @@ class Chess:
             lastSelectedSquare = selectedSquare
             selectedSquare = self.board[FILE[x]][y]
 
-            if selectedSquare in self.possibleMoves and self.isMoveAllowed(lastSelectedSquare, selectedSquare):
-                self.movePiece(lastSelectedSquare, selectedSquare)
-                self.undrawPreviews()
-                moveColor = Color.Black if selectedSquare.getPiece().isWhite() else Color.White
-                kingSquare = self.checkForCheck(moveColor)
-                if kingSquare is not None:
-                    kingSquare.flashSquare()
-                self.undrawPreviews
+            if selectedSquare in self.possibleMoves:
+                kingInCheck = self.isMoveAllowed(lastSelectedSquare, selectedSquare)
+                if kingInCheck is None:
+                    self.movePiece(lastSelectedSquare, selectedSquare)
+                    self.undrawPreviews()
+                    moveColor = swapColor(moveColor)
+                    kingSquare = self.inCheck(moveColor)
+                    if kingSquare is not None :
+                        kingSquare.flashSquare(0.5, "red")
+
+                        if self.checkForcheckmate(moveColor):
+                            print(moveColor.name, "is in checkmate!")
+                            break
+
+                    self.undrawPreviews
+                else: kingInCheck.flashSquare(0.5, "red")
                 
             try:
                 if selectedSquare.getPiece().getColor() != moveColor:
@@ -608,17 +612,18 @@ class Chess:
 
         return legalMoves
 
-    def isMoveAllowed(self, square1: Square, square2: Square) -> bool:
+    def isMoveAllowed(self, square1: Square, square2: Square) -> Square:
         lostPiece = square2.getPiece()
         self.previewMove(square1, square2)
-        kingSquare = self.checkForCheck(square2.getPiece().getColor())
-        if kingSquare is not None:
-            kingSquare.flashSquare()
+        kingSquare = self.inCheck(square2.getPiece().getColor())
         self.previewMove(square2, square1)
         square2.previewPiece(lostPiece)
 
-        return kingSquare is None
+        if kingSquare is not None and square1.getPiece().getType() == ChessPiece.King:
+            kingSquare = square1        
 
+        return kingSquare
+            
     def drawPreviews(self, legalMoves) -> None:
         self.possibleMoves = legalMoves
         for square in legalMoves:
@@ -634,16 +639,15 @@ class Chess:
         square2.previewPiece(square1.getPiece())
         square1.previewPiece(None)
 
-    def checkForCheck(self, color) -> Square:
-        colorCheck = Color.White if color == Color.Black else Color.Black
+    def inCheck(self, colorInCheck: Color) -> Square:
+        checkingColor = swapColor(colorInCheck)
 
         kingInCheck = None
         for file in range(0, 8):
             for rank in range(0, 8):
                 currentSquare = self.board[FILE[file]][rank]
                 try:
-                    #print(str(FILE[file]) + str(rank), currentSquare.getPiece().getType().name)
-                    if currentSquare.getPiece().getColor() == colorCheck:
+                    if currentSquare.getPiece().getColor() == checkingColor:
                         legalMoves = self.getAllLegalMoves(file, rank)
                         for moveSquare in legalMoves:
                             if moveSquare.getPiece() == ChessPiece.King:
@@ -652,6 +656,23 @@ class Chess:
                     pass
 
         return kingInCheck
+    
+    def checkForcheckmate(self, colorInCheck: Color) -> bool:
+        checkingColor = swapColor(colorInCheck)
+
+        for file in range(0, 8):
+            for rank in range(0, 8):
+                square = self.board[FILE[file]][rank]
+                allMoves = self.getAllLegalMoves(file, rank)
+
+                try:
+                    if square.getPiece().getColor() == colorInCheck:
+                        for move in allMoves:
+                            if self.isMoveAllowed(square, move) is None: return False
+                except:
+                    pass
+
+        return True
 
     def _clickPrint(self) -> None:
         while(True):
