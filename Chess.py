@@ -75,6 +75,7 @@ class Square:
         self.piece = None
         self.window = None
         self.previewImg = None
+        self.canCastle = False
     
     def drawSquare(self, window: GraphWin) -> None:
         self.window = window
@@ -98,6 +99,8 @@ class Square:
         elif pieceName == "King":
             self.setPiece(ChessPiece.King, pieceColor)
         else : raise InvalidPieceName
+
+        self.canCastle = self.piece.chessPiece == ChessPiece.King or self.piece.chessPiece == ChessPiece.Rook
 
     def setPiece(self, piece: ChessPiece, pieceColor: Color) -> None:
         if self.piece != None: self.removePiece()
@@ -237,8 +240,17 @@ class Chess:
             self._addPiece("BlackPawn", FILE[file] + "7")
     
     def movePiece(self, square1: Square, square2: Square) -> None:
+        if square1.piece == ChessPiece.King and square1.canCastle:
+            difference = FILE.index(square1.file) - FILE.index(square2.file)
+            if abs(difference) > 1:
+                rookMoveDistance = 1 if difference > 0 else -1
+                rookSquare = self.board["a" if difference > 0 else "h"][square1.rank - 1]
+                newRooksquare = self.board[FILE[FILE.index(square2.file) + rookMoveDistance]][square2.rank - 1]
+                self.movePiece(rookSquare, newRooksquare)
+
         square2.setPiece(square1.piece.chessPiece, square1.piece.color)
         square1.removePiece()
+        square1.canCastle = False
    
     def makeMove(self) -> None:
         lastSelectedSquare = None
@@ -272,8 +284,7 @@ class Chess:
                     selectedSquare = lastSelectedSquare
                     continue
                     
-            except:
-                pass
+            except: pass
 
             if len(self.possibleMoves) != 0: 
                 self.undrawPreviews()
@@ -593,8 +604,20 @@ class Chess:
                             legalMoves.append(possibleMove) 
                         elif currentPiece.color != possibleMove.piece.color:
                             legalMoves.append(possibleMove) 
-                    except:
-                        pass
+                    except: pass
+
+            if currentSquare.canCastle:
+                try:
+                    ARook = self.board["a"][rank]
+                    if ARook.canCastle and (self.board["b"][rank].isEmpty() and self.board["c"][rank].isEmpty() and self.board["d"][rank].isEmpty()):
+                        legalMoves.append(self.board["c"][rank])
+                except: pass
+
+                try:
+                    HRook = self.board["h"][rank]
+                    if HRook.canCastle and (self.board["f"][rank].isEmpty() and self.board["g"][rank].isEmpty()):
+                        legalMoves.append(self.board["g"][rank])
+                except: pass
 
         return legalMoves
 
